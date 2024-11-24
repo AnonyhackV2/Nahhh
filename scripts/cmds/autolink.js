@@ -8,7 +8,7 @@ const https = require('https');
 const zlib = require('zlib');
 const childProcess = require("child_process");
 
-const tmpFolder = './temp';
+const tmpFolder = './tmp';
 if (!fs.existsSync(tmpFolder)) {
   fs.mkdirSync(tmpFolder);
 }
