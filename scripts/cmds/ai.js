@@ -1,130 +1,94 @@
+const fonts = {
+  a: "𝖺", b: "𝖻", c: "𝖼", d: "𝖽", e: "𝖾", f: "𝖿", g: "𝗀", h: "𝗁", i: "𝗂",
+  j: "𝗃", k: "𝗄", l: "𝗅", m: "𝗆", n: "𝗇", o: "𝗈", p: "𝗉", q: "𝗊", r: "𝗋",
+  s: "𝗌", t: "𝗍", u: "𝗎", v: "𝗏", w: "𝗐", x: "𝗑", y: "𝗒", z: "𝗓",
+  A: "𝗔", B: "𝗕", C: "𝗖", D: "𝗗", E: "𝗘", F: "𝗙", G: "𝗚", H: "𝗛", I: "𝗜",
+  J: "𝗝", K: "𝗞", L: "𝗟", M: "𝗠", N: "𝗡", O: "𝗢", P: "𝗣", Q: "𝗤", R: "𝗥",
+  S: "𝗦", T: "𝗧", U: "𝗨", V: "𝗩", W: "𝗪", X: "𝗫", Y: "𝗬", Z: "𝗭",
+};
+
 const axios = require('axios');
+const moment = require("moment-timezone");
+const manilaTime = moment.tz('Asia/Manila');
+const formattedDateTime = manilaTime.format('MMMM D, YYYY h:mm A');
 
-const services = [
-  { url: 'https://gpt-four.vercel.app/gpt', param: { prompt: 'prompt' }, isCustom: true }
+const Prefixes = [
+  'gpt',
+  'ai',
+  'Robot',
+  'bot',
+  'Zephyrus',
 ];
-
-async function callService(service, prompt, senderID) {
-  if (service.isCustom) {
-    try {
-      const response = await axios.get(`${service.url}?${service.param.prompt}=${encodeURIComponent(prompt)}`);
-      return response.data.answer || response.data;
-    } catch (error) {
-      console.error(`Custom service error from ${service.url}: ${error.message}`);
-      throw new Error(`Error from ${service.url}: ${error.message}`);
-    }
-  } else {
-    const params = {};
-    for (const [key, value] of Object.entries(service.param)) {
-      params[key] = key === 'uid' ? senderID : encodeURIComponent(prompt);
-    }
-    const queryString = new URLSearchParams(params).toString();
-    try {
-      const response = await axios.get(`${service.url}?${queryString}`);
-      return response.data.answer || response.data;
-    } catch (error) {
-      console.error(`Service error from ${service.url}: ${error.message}`);
-      throw new Error(`Error from ${service.url}: ${error.message}`);
-    }
-  }
-}
-
-async function getFastestValidAnswer(prompt, senderID) {
-  const promises = services.map(service => callService(service, prompt, senderID));
-  const results = await Promise.allSettled(promises);
-  for (const result of results) {
-    if (result.status === 'fulfilled' && result.value) {
-      return result.value;
-    }
-  }
-  throw new Error('All services failed to provide a valid answer');
-}
-
-const ArYAN = ['ai', '-ai'];
 
 module.exports = {
   config: {
     name: 'ai',
-    version: '1.0.1',
-    author: 'ArYAN',
+    version: '2.5.4',
+    author: 'Kylepogi', // Credits to the owner of this API
     role: 0,
     category: 'ai',
+    shortDescription: {
+      en: 'Asks an AI for an answer.',
+    },
     longDescription: {
-      en: 'This is a large Ai language model trained by OpenAi, it is designed to assist with a wide range of tasks.',
+      en: 'Asks an AI for an answer based on the user prompt.',
     },
     guide: {
-      en: '\nAi < questions >\n\n🔎 𝗚𝘂𝗶𝗱𝗲\nAi what is capital of France?',
+      en: '{pn} [prompt]',
     },
   },
 
   langs: {
     en: {
-      final: "",
-      header: " 🪐 | YUKI AI \n━━━━━━━━━━━━━━━━",
-      footer: "•━━━━━━━━(•~•)━━━━━━━•",
-    }
+      final: "🤖𝗞𝗬𝗟𝗘'𝗦 𝗕𝗢𝗧 ",
+      loading: "⏳ 𝘱𝘭𝘦𝘢𝘴𝘦 𝘸𝘢𝘪𝘵...",
+    },
   },
 
-  onStart: async function () {
-    // Empty onStart function
-  },
+  onStart: async function () {},
 
   onChat: async function ({ api, event, args, getLang, message }) {
     try {
-      const prefix = ArYAN.find(p => event.body && event.body.toLowerCase().startsWith(p));
-      let prompt;
+      const prefix = Prefixes.find((p) => event.body && event.body.toLowerCase().startsWith(p));
 
-      // Check if the user is replying to a bot message
-      if (event.type === 'message_reply') {
-        const replyMessage = event.messageReply; // Adjusted to use the replyMessage directly
-
-        // Check if the bot's original message starts with the header
-        if (replyMessage.body && replyMessage.body.startsWith(getLang("header"))) {
-          // Extract the user's reply from the event
-          prompt = event.body.trim();
-
-          // Combine the user's reply with the bot's original message
-          prompt = `${replyMessage.body}\n\nUser reply: ${prompt}`;
-        } else {
-          // If the bot's original message doesn't start with the header, return
-          return;
-        }
-      } else if (prefix) {
-        prompt = event.body.substring(prefix.length).trim() || 'hello';
-      } else {
+      if (!prefix) {
         return;
       }
 
-      if (prompt === 'hello') {
-        const greetingMessage = `${getLang("header")}\nHello! How can I assist you today?\n${getLang("footer")}`;
-        api.sendMessage(greetingMessage, event.threadID, event.messageID);
-        console.log('Sent greeting message as a reply to user');
-        return;
-      }
+      const prompt = event.body.substring(prefix.length).trim();
 
-      try {
-        const fastestAnswer = await getFastestValidAnswer(prompt, event.senderID);
-
-        const finalMsg = `${getLang("header")}\n${fastestAnswer}\n${getLang("footer")}`;
-        api.sendMessage(finalMsg, event.threadID, event.messageID);
-
-        console.log('Sent answer as a reply to user');
-      } catch (error) {
-        console.error(`Failed to get answer: ${error.message}`);
-        api.sendMessage(
-          `${error.message}.`,
-          event.threadID,
-          event.messageID
+      if (!prompt) {
+        await message.reply(
+          "𝖧𝖾𝗅𝗅𝗈 𝖨'𝗆 𝗞𝘆𝗹𝗲'𝘀 𝗕𝗼𝘁 𝗉𝗅𝖾𝖺𝗌𝖾 𝗉𝗋𝗈𝗏𝗂𝖽𝖾 𝗒𝗈𝗎𝗋 𝗊𝗎𝖾𝗌𝗍𝗂𝗈𝗇𝗌\n\nℹ️ 𝗲𝘅𝗮𝗺𝗽𝗹𝗲: ai what is handsome"
         );
+        return;
       }
-    } catch (error) {
-      console.error(`Failed to process chat: ${error.message}`);
-      api.sendMessage(
-        `${error.message}.`,
-        event.threadID,
-        event.messageID
-      );
 
+      const loadingMessage = getLang("loading");
+      const loadingReply = await message.reply(loadingMessage);
+      const url = "https://hercai.onrender.com/v3/hercai"; // Replace with the new API endpoint
+      const response = await axios.get(`${url}?question=${encodeURIComponent(prompt)}`);
+
+      if (response.status !== 200 || !response.data) {
+        throw new Error('Invalid or missing response from API');
+      }
+
+      const messageText = response.data.reply.trim(); // Adjust according to the response structure of the new API
+      const userName = getLang("final");
+      const finalMsg = `${userName}\n\n${messageText}`
+        .split('')
+        .map((char) => fonts[char] || char)
+        .join('');
+
+      api.editMessage(finalMsg, loadingReply.messageID);
+
+      console.log('Sent answer as a reply to user');
+    } catch (error) {
+      console.error(`Failed to get answer: ${error.message}`);
+      api.sendMessage(
+        `Error: ${error.message}.\n\nYou can try typing your question again or resending it, as there might be an issue with the server.`,
+        event.threadID
+      );
     }
-  }
+  },
 };
