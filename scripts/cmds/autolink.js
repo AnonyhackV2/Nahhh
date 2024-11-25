@@ -226,7 +226,7 @@ var url;
 
 module.exports = {
   config: {
-    name: 'autolink2',
+    name: 'autolink',
     version: '1.2.10',
     author: 'Shikaki',
     countDown: 5,
